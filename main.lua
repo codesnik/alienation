@@ -19,11 +19,63 @@ function love.load()
         {x=Width/2 - 100, y=Height/2, dx=0, dy=0, tilt=0},
         {x=Width/2 + 100, y=Height/2, dx=0, dy=0, tilt=0}
     }
+
     MaxTilt = 0.7
     TiltSpeed = 3
+    Acceleration = 2
+    Damping = 0.3
 end
 
 function love.update(dt)
+
+  local function ship_up(ship)
+    ship.dy = ship.dy - dt * Acceleration
+  end
+
+  local function ship_down(ship)
+    ship.dy = ship.dy + dt * Acceleration
+  end
+
+  local function ship_left(ship)
+    ship.dx = ship.dx - dt * Acceleration
+    ship.tilt = math.max(ship.tilt - dt * TiltSpeed, -MaxTilt)
+  end
+
+  local function ship_right(ship)
+    ship.dx = ship.dx + dt * Acceleration
+    ship.tilt = math.min(ship.tilt + dt * TiltSpeed, MaxTilt)
+  end
+
+  local function ship_idle(ship)
+    if math.abs(ship.tilt) < dt * TiltSpeed then
+      ship.tilt = 0
+    elseif ship.tilt ~= 0 then
+      ship.tilt = ship.tilt - ship.tilt / math.abs(ship.tilt) * dt * TiltSpeed
+    end
+  end
+
+  local function ship_move(ship)
+    ship.x = ship.x + ship.dx
+    ship.y = ship.y + ship.dy
+    if ship.x < 0 then
+      ship.x = -ship.x
+      ship.dx = -ship.dx
+    end
+    if ship.y < 0 then
+      ship.y = -ship.y
+      ship.dy = -ship.dy
+    end
+    if ship.x > Width then
+      ship.x = Width - (ship.x - Width) * Damping
+      ship.dx = -ship.dx * Damping
+    end
+    if ship.y > Height then
+      ship.y = Height - (ship.y - Height) * Damping
+      ship.dy = -ship.dy * Damping
+    end
+  end
+
+
   -- blink stars
   for i=1, #Stars do
     local star = Stars[i]
@@ -39,50 +91,55 @@ function love.update(dt)
   end
 
   if love.keyboard.isDown('up') then
-    Ships[1].dy = Ships[1].dy - dt
+    ship_up(Ships[1])
   elseif love.keyboard.isDown('down') then
-    Ships[1].dy = Ships[1].dy + dt
+    ship_down(Ships[1])
   end
 
   if love.keyboard.isDown('left') then
-    Ships[1].dx = Ships[1].dx - dt
-    Ships[1].tilt = math.max(Ships[1].tilt - dt * TiltSpeed, -MaxTilt)
+    ship_left(Ships[1])
   elseif love.keyboard.isDown('right') then
-    Ships[1].dx = Ships[1].dx + dt
-    Ships[1].tilt = math.min(Ships[1].tilt + dt * TiltSpeed, MaxTilt)
+    ship_right(Ships[1])
   else
-    if math.abs(Ships[1].tilt) < dt * TiltSpeed then
-      Ships[1].tilt = 0
-    elseif Ships[1].tilt ~= 0 then
-      Ships[1].tilt = Ships[1].tilt - Ships[1].tilt / math.abs(Ships[1].tilt) * dt * TiltSpeed
-    end
+    ship_idle(Ships[1])
   end
 
-  Ships[1].x = Ships[1].x + Ships[1].dx
-  Ships[1].y = Ships[1].y + Ships[1].dy
-  Ships[2].x = Ships[2].x + Ships[2].dx
-  Ships[2].y = Ships[2].y + Ships[2].dy
+  if love.keyboard.isDown('w') then
+    ship_up(Ships[2])
+  elseif love.keyboard.isDown('s') then
+    ship_down(Ships[2])
+  end
 
+  if love.keyboard.isDown('a') then
+    ship_left(Ships[2])
+  elseif love.keyboard.isDown('d') then
+    ship_right(Ships[2])
+  else
+    ship_idle(Ships[2])
+  end
+
+  ship_move(Ships[1])
+  ship_move(Ships[2])
 end
 
 function love.draw()
-    love.graphics.origin()
-    love.graphics.points(Stars)
-    draw_ship(Ships[1], 'red')
-    draw_ship(Ships[2], 'blue')
+  local function draw_ship(ship, color)
+    love.graphics.push()
+    love.graphics.translate(ship.x, ship.y)
+    love.graphics.rotate(ship.tilt)
+    love.graphics.ellipse('fill', 0, -4, 5, 4)
+    if color == 'red' then
+      love.graphics.setColor(1, 0, 0)
+    elseif color == 'blue' then
+      love.graphics.setColor(0, 0, 1)
+    end
+    love.graphics.ellipse('fill', 0, 0, 10, 5)
+    love.graphics.reset()
+    love.graphics.pop()
+  end
+  love.graphics.origin()
+  love.graphics.points(Stars)
+  draw_ship(Ships[1], 'red')
+  draw_ship(Ships[2], 'blue')
 end
 
-function draw_ship(ship, color)
-  love.graphics.push()
-  love.graphics.translate(ship.x, ship.y)
-  love.graphics.rotate(ship.tilt)
-  love.graphics.ellipse('fill', 0, -4, 5, 4)
-  if color == 'red' then
-    love.graphics.setColor(1, 0, 0)
-  elseif color == 'blue' then
-    love.graphics.setColor(0, 0, 1)
-  end
-  love.graphics.ellipse('fill', 0, 0, 10, 5)
-  love.graphics.reset()
-  love.graphics.pop()
-end
