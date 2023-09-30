@@ -17,12 +17,14 @@ function love.load()
     end
 
     Ships = {
-        {x=Width/2 - 100, y=Height/2, dx=0, dy=0, tilt=0},
-        {x=Width/2 + 100, y=Height/2, dx=0, dy=0, tilt=0}
+        {x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0, angle=0}},
+        {x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0, angle=0}}
     }
 
     MaxTilt = 0.7
     TiltSpeed = 3
+    MaxPower = 5
+    PowerUp = 2
     Acceleration = 2
     Damping = 0.3
 end
@@ -76,6 +78,19 @@ function love.update(dt)
     end
   end
 
+  local function ship_unfire(ship)
+    ship.laser.phase = 0
+    ship.laser.angle = 0
+  end
+
+  local function ship_fire(ship)
+    if (ship.laser.phase == 0 and (ship.dx ~= 0 or ship.dy ~= 0)) then
+      ship.laser.phase = 1
+      ship.laser.angle = 2 * math.atan(ship.dy / (ship.dx + math.sqrt(ship.dx*ship.dx + ship.dy*ship.dy)))
+    else
+      ship_unfire(ship)
+    end
+  end
 
   -- blink stars
   for i=1, #Stars do
@@ -105,6 +120,18 @@ function love.update(dt)
     ship_idle(Ships[1])
   end
 
+  if love.keyboard.isDown('space') or love.keyboard.isDown(',') then
+    ship_fire(Ships[1])
+  else
+    ship_unfire(Ships[1])
+  end
+
+  if love.keyboard.isDown('1') or love.keyboard.isDown('`') then
+    ship_fire(Ships[2])
+  else
+    ship_unfire(Ships[2])
+  end
+
   if love.keyboard.isDown('w') then
     ship_up(Ships[2])
   elseif love.keyboard.isDown('s') then
@@ -124,6 +151,7 @@ function love.update(dt)
 end
 
 function love.draw()
+
   local function draw_ship(ship, color)
     love.graphics.push()
     love.graphics.translate(ship.x, ship.y)
@@ -138,9 +166,27 @@ function love.draw()
     love.graphics.reset()
     love.graphics.pop()
   end
+
+  local function draw_laser(ship, color)
+    if ship.laser.phase == 0 then
+      return
+    end
+    love.graphics.push()
+    love.graphics.setColor(1,1,1)
+    love.graphics.line(
+      ship.x + math.cos(ship.laser.angle)*10,
+      ship.y + math.sin(ship.laser.angle)*10,
+      ship.x + math.cos(ship.laser.angle)*Width,
+      ship.y + math.sin(ship.laser.angle)*Width
+    )
+    love.graphics.pop()
+  end
+
   love.graphics.origin()
   love.graphics.points(Stars)
   draw_ship(Ships[1], 'red')
   draw_ship(Ships[2], 'blue')
+  draw_laser(Ships[1], 'red')
+  draw_laser(Ships[2], 'blue')
 end
 
