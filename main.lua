@@ -1,6 +1,7 @@
 function love.load()
-    Width, Height = love.graphics.getDimensions()
+    love.window.setFullscreen(true)
     -- success = love.window.setFullscreen(true, "exclusive")
+    Width, Height = love.graphics.getDimensions()
     local max_stars = 100   -- how many stars we want
 
     Stars = {}   -- table which will hold our stars
