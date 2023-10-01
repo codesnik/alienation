@@ -29,8 +29,14 @@ function love.load()
     Acceleration = 5
     Damping = 0.2
 
-    -- Laser1 = love.audio.newSource('sounds/laser.mp3', 'static')
-    -- Laser2 = love.audio.newSource('sounds/laser.mp3', 'static')
+    local laser = love.audio.newSource('sounds/laser.mp3', 'static')
+    local bg = love.audio.newSource('sounds/bg.wav', 'static')
+    bg:setLooping(true)
+    bg:play()
+    Lasers = {}
+    for i=1, 5 do
+      Lasers[i] = laser:clone()
+    end
 end
 
 function love.update(dt)
@@ -45,18 +51,13 @@ function love.update(dt)
     end
   end
 
+  -- up to 10 lasers simultaneously. Plays the first laser and puts it at the end of the array
   local function play_laser()
-    --[[
-    if Laser1:isPlaying() then
-      Laser2:stop()
-      Laser2:setPitch(1 + math.random()*0.5)
-      Laser2:play()
-    else
-      Laser1:stop()
-      Laser1:setPitch(1 + math.random()*0.5)
-      Laser1:play()
-    end
-    --]]
+    local laser = table.remove(Lasers, 1)
+    laser:stop()
+    laser:setPitch(1 + math.random()*0.5)
+    laser:play()
+    table.insert(Lasers, laser)
   end
 
   local function ship_up(ship)
@@ -197,6 +198,7 @@ function love.draw()
   end
 
   local function draw_laser(ship, color)
+    -- not firing or staying still
     if ship.laser.phase == 0 or not(ship.angle) then
       return
     end
