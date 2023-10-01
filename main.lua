@@ -1,8 +1,20 @@
 function love.load()
+    love.mouse.setVisible(false)
     love.window.setFullscreen(true)
     -- success = love.window.setFullscreen(true, "exclusive")
     Width, Height = love.graphics.getDimensions()
-    love.mouse.setVisible(false)
+
+    StarsDx = 0
+    StarsDy = 0.1
+    MaxTilt = 0.7
+    TiltSpeed = 3
+    PowerUp = 2
+    Acceleration = 5
+    Damping = 0.2
+    LaserDamping = 0.1
+    MaxCharge = 10
+    ChargeSpeed = 1
+    MaxLife = 50
 
     Stars = {}
     for i=1, 200 do
@@ -18,19 +30,13 @@ function love.load()
     end
 
     Ships = {
-      {x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0}},
-      {x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0}}
+      {x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0, life = MaxLife, laser = {power = 0, charge=0},
+        r = 1, g = 0, b = 0
+      },
+      {x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0, life = MaxLife, laser = {power = 0, charge=0},
+        r = 0, g = 0, b = 1
+      }
     }
-
-    StarsDx = 0
-    StarsDy = 0.1
-    MaxTilt = 0.7
-    TiltSpeed = 3
-    MaxPower = 5
-    PowerUp = 2
-    Acceleration = 5
-    Damping = 0.2
-    LaserDamping = 0.1
 
     local laser = love.audio.newSource('sounds/laser.mp3', 'static')
     local bg = love.audio.newSource('sounds/bg.wav', 'static')
@@ -61,13 +67,6 @@ function love.update(dt)
     laser:setPitch(1 + math.random()*0.5)
     laser:play()
     table.insert(Lasers, laser)
-  end
-
-  local function fade_laser(ship)
-    ship.laser.phase = ship.laser.phase - dt * LaserDamping
-    if ship.laser.phase < 0 then
-      ship.laser.phase = 0
-    end
   end
 
   local function ship_up(ship)
@@ -101,37 +100,53 @@ function love.update(dt)
     ship.y = ship.y + ship.dy
     if ship.x < 0 then
       ship.x = -ship.x
+      ship.life = ship.life - math.abs(ship.dx)
       ship.dx = -ship.dx
     end
     if ship.y < 0 then
       ship.y = -ship.y
+      ship.life = ship.life - math.abs(ship.dy)
       ship.dy = -ship.dy
     end
     if ship.x > Width then
       ship.x = Width - (ship.x - Width) * Damping
+      ship.life = ship.life - math.abs(ship.dx)
       ship.dx = -ship.dx * Damping
     end
     if ship.y > Height then
       ship.y = Height - (ship.y - Height) * Damping
+      ship.life = ship.life - math.abs(ship.dy)
       ship.dy = -ship.dy * Damping
     end
     ship.angle = get_angle(ship.dx, ship.dy)
   end
 
-  local function ship_unfire(ship)
-    ship.laser.phase = 0
+  local function fade_laser(ship)
+    ship.laser.power = ship.laser.power - dt * LaserDamping
+    if ship.laser.power < 0 then
+      ship.laser.power = 0
+    end
   end
 
-  local function ship_fire(ship)
-    if ship.laser.phase == 0 then
-      ship.laser.phase = 1
+  local function ship_release(ship)
+    if ship.laser.charge then
+      ship.laser.power = ship.laser.charge
+      ship.laser.charge = 0
       play_laser()
     end
   end
 
-  -- blink and move stars
+  local function ship_charge(ship)
+    if ship.laser.charge == 0 then
+      ship.laser.power = 1
+      play_laser()
+    end
+    ship.laser.charge = math.min(MaxCharge, ship.laser.charge + dt * ChargeSpeed)
+  end
+
   for i=1, #Stars do
     local star = Stars[i]
+    -- blink stars
     star[6] = star[6] + star[7] * 0.01
     if star[6] < 0 then
       star[6] = 0
@@ -141,6 +156,7 @@ function love.update(dt)
       star[6] = 1
       star[7] = -1
     end
+    -- move starfield
     star[1] = (star[1] + Width + StarsDx) % Width
     star[2] = (star[2] + Height + StarsDy) % Height
   end
@@ -163,15 +179,15 @@ function love.update(dt)
   end
 
   if love.keyboard.isDown('space') or love.keyboard.isDown(',') then
-    ship_fire(Ships[1])
+    ship_charge(Ships[1])
   else
-    ship_unfire(Ships[1])
+    ship_release(Ships[1])
   end
 
   if love.keyboard.isDown('1') or love.keyboard.isDown('`') then
-    ship_fire(Ships[2])
+    ship_charge(Ships[2])
   else
-    ship_unfire(Ships[2])
+    ship_release(Ships[2])
   end
 
   if love.keyboard.isDown('w') then
@@ -194,25 +210,21 @@ end
 
 function love.draw()
 
-  local function draw_ship(ship, color)
+  local function draw_ship(ship)
     love.graphics.push()
     love.graphics.translate(ship.x, ship.y)
     love.graphics.rotate(ship.tilt)
     love.graphics.setColor(1, 1, 1, 0.5)
     love.graphics.ellipse('fill', 0, -4, 5, 4)
-    if color == 'red' then
-      love.graphics.setColor(1, 0, 0, 1)
-    elseif color == 'blue' then
-      love.graphics.setColor(0, 0, 1, 1)
-    end
+    love.graphics.setColor(ship.r, ship.g, ship.b, 1)
     love.graphics.ellipse('fill', 0, 0, 10, 5)
     love.graphics.reset()
     love.graphics.pop()
   end
 
-  local function draw_laser(ship, color)
+  local function draw_laser(ship)
     -- not firing or staying still
-    if ship.laser.phase < 0.5 or not(ship.angle) then
+    if ship.laser.power < 0.1 or not(ship.angle) then
       return
     end
 
@@ -223,25 +235,36 @@ function love.draw()
       ship.y + math.sin(ship.angle)*(Width+Height)
     }
 
-    if color == 'red' then
-      love.graphics.setColor(1, 0, 0)
-    elseif color == 'blue' then
-      love.graphics.setColor(0, 0, 1)
-    end
+    love.graphics.setColor(ship.r, ship.g, ship.b, 1)
     love.graphics.push()
-    love.graphics.setLineWidth(3)
+    love.graphics.setLineWidth(10 * ship.laser.power / MaxCharge)
     love.graphics.line(unpack(line))
     love.graphics.setColor(1,1,1)
-    love.graphics.setLineWidth(1)
+    love.graphics.setLineWidth(3 * ship.laser.power / MaxCharge)
     love.graphics.line(unpack(line))
+    love.graphics.pop()
+  end
+
+  local function draw_stats(ship, point, direction)
+    local length = 100
+    love.graphics.push()
+    love.graphics.setColor(ship.r, ship.g, ship.b, 1)
+    love.graphics.setLineWidth(5)
+    love.graphics.line(point, 30, point + ship.life / MaxLife * length * direction, 30)
+    love.graphics.setLineWidth(2)
+    love.graphics.line(point, 40, point + ship.laser.charge / MaxCharge * length * direction, 40)
+    love.graphics.line(point, 50, point + ship.laser.power / MaxCharge * length * direction, 50)
     love.graphics.pop()
   end
 
   love.graphics.origin()
   love.graphics.points(Stars)
-  draw_ship(Ships[1], 'red')
-  draw_ship(Ships[2], 'blue')
-  draw_laser(Ships[1], 'red')
-  draw_laser(Ships[2], 'blue')
+
+  draw_stats(Ships[1], 30, 1)
+  draw_stats(Ships[2], Width-30, -1)
+  draw_ship(Ships[1])
+  draw_ship(Ships[2])
+  draw_laser(Ships[1])
+  draw_laser(Ships[2])
 end
 
