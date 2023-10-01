@@ -16,6 +16,8 @@ function love.load()
     MinSuperCharge = 3
     ChargeSpeed = 5
     MaxLife = 50
+    ShipRadius = 8
+    DamageMultiplier = 10
 
     Stars = {}
     for i=1, 200 do
@@ -55,13 +57,37 @@ end
 
 function love.update(dt)
 
+  local function damage(ship, damage)
+    ship.life = math.max(0, ship.life - damage)
+  end
+
   local function get_angle(x, y)
     if x == 0 and y == 0 then
       return nil
     elseif x < 0 and y == 0 then
       return math.pi
     else
-      return 2 * math.atan(y / (x + math.sqrt(x*x + y*y)))
+      return 2 * math.atan(y / (x + math.sqrt(x^2 + y^2)))
+    end
+  end
+
+  -- distance of ship s1 from laser of s2
+  -- uses equal-sided triangle instead of right triangle.
+  -- not ideal when very close from s1 to s2
+  local function get_distance_from_laser(s1, s2)
+    local ship_dist = math.sqrt((s1.x - s2.x)^2 + (s1.y - s2.y)^2)
+    local projection_x = s2.x + ship_dist * math.cos(s2.angle)
+    local projection_y = s2.y + ship_dist * math.sin(s2.angle)
+    return math.sqrt((s1.x - projection_x)^2 + (s1.y - projection_y)^2)
+  end
+
+  -- inflict damage on s1 from laser of s2
+  local function update_laser_damage(s1, s2)
+    if s2.laser.power == 0 then
+      return
+    end
+    if get_distance_from_laser(s1, s2) < ShipRadius + 5 * s2.laser.power/MaxCharge then
+      damage(s1, s2.laser.power * dt * DamageMultiplier)
     end
   end
 
@@ -70,6 +96,7 @@ function love.update(dt)
     local laser = table.remove(Lasers, 1)
     laser:stop()
     laser:setPitch(1 + math.random()*0.3 - power/MaxCharge*0.6)
+    laser:setVolume(0.7 + power/MaxCharge*0.3)
     laser:play()
     table.insert(Lasers, laser)
   end
@@ -105,22 +132,22 @@ function love.update(dt)
     ship.y = ship.y + ship.dy
     if ship.x < 0 then
       ship.x = -ship.x
-      ship.life = ship.life - math.abs(ship.dx)
+      damage(ship, math.abs(ship.dx))
       ship.dx = -ship.dx
     end
     if ship.y < 0 then
       ship.y = -ship.y
-      ship.life = ship.life - math.abs(ship.dy)
+      damage(ship, math.abs(ship.dy))
       ship.dy = -ship.dy
     end
     if ship.x > Width then
       ship.x = Width - (ship.x - Width) * Damping
-      ship.life = ship.life - math.abs(ship.dx)
+      damage(ship, math.abs(ship.dx))
       ship.dx = -ship.dx * Damping
     end
     if ship.y > Height then
       ship.y = Height - (ship.y - Height) * Damping
-      ship.life = ship.life - math.abs(ship.dy)
+      damage(ship, math.abs(ship.dy))
       ship.dy = -ship.dy * Damping
     end
     ship.angle = get_angle(ship.dx, ship.dy)
@@ -213,6 +240,8 @@ function love.update(dt)
 
   ship_move(Ships[1])
   ship_move(Ships[2])
+  update_laser_damage(Ships[1], Ships[2])
+  update_laser_damage(Ships[2], Ships[1])
 end
 
 function love.draw()
