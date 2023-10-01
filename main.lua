@@ -11,9 +11,10 @@ function love.load()
     PowerUp = 2
     Acceleration = 5
     Damping = 0.2
-    LaserDamping = 0.1
+    LaserDamping = 18
     MaxCharge = 10
-    ChargeSpeed = 1
+    MinSuperCharge = 3
+    ChargeSpeed = 5
     MaxLife = 50
 
     Stars = {}
@@ -30,10 +31,14 @@ function love.load()
     end
 
     Ships = {
-      {x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0, life = MaxLife, laser = {power = 0, charge=0},
+      {
+        x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0,
+        life = MaxLife, laser = { power = 0, charge=0 },
         r = 1, g = 0, b = 0
       },
-      {x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0, life = MaxLife, laser = {power = 0, charge=0},
+      {
+        x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0,
+        life = MaxLife, laser = { power = 0, charge=0 },
         r = 0, g = 0, b = 1
       }
     }
@@ -61,10 +66,10 @@ function love.update(dt)
   end
 
   -- up to 10 lasers simultaneously. Plays the first laser and puts it at the end of the array
-  local function play_laser()
+  local function play_laser(power)
     local laser = table.remove(Lasers, 1)
     laser:stop()
-    laser:setPitch(1 + math.random()*0.5)
+    laser:setPitch(1 + math.random()*0.3 - power/MaxCharge*0.6)
     laser:play()
     table.insert(Lasers, laser)
   end
@@ -129,17 +134,19 @@ function love.update(dt)
   end
 
   local function ship_release(ship)
-    if ship.laser.charge then
+    if ship.laser.charge > MinSuperCharge then
       ship.laser.power = ship.laser.charge
       ship.laser.charge = 0
-      play_laser()
+      play_laser(ship.laser.power)
+    else
+      ship.laser.charge = 0
     end
   end
 
   local function ship_charge(ship)
     if ship.laser.charge == 0 then
       ship.laser.power = 1
-      play_laser()
+      play_laser(ship.laser.power)
     end
     ship.laser.charge = math.min(MaxCharge, ship.laser.charge + dt * ChargeSpeed)
   end
@@ -237,16 +244,16 @@ function love.draw()
 
     love.graphics.setColor(ship.r, ship.g, ship.b, 1)
     love.graphics.push()
-    love.graphics.setLineWidth(10 * ship.laser.power / MaxCharge)
+    love.graphics.setLineWidth(3 + 10 * ship.laser.power / MaxCharge)
     love.graphics.line(unpack(line))
     love.graphics.setColor(1,1,1)
-    love.graphics.setLineWidth(3 * ship.laser.power / MaxCharge)
+    love.graphics.setLineWidth(1 + 3 * ship.laser.power / MaxCharge)
     love.graphics.line(unpack(line))
     love.graphics.pop()
   end
 
   local function draw_stats(ship, point, direction)
-    local length = 100
+    local length = 200
     love.graphics.push()
     love.graphics.setColor(ship.r, ship.g, ship.b, 1)
     love.graphics.setLineWidth(5)
@@ -267,4 +274,3 @@ function love.draw()
   draw_laser(Ships[1])
   draw_laser(Ships[2])
 end
-
