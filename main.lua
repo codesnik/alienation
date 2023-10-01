@@ -5,10 +5,10 @@ function love.load()
     love.mouse.setVisible(false)
 
     Stars = {}
-    for i=1, 1000 do
+    for i=1, 200 do
        Stars[i] = {
-         math.random(5, Width-5),  -- x
-         math.random(5, Height-5), -- y
+         math.random(0, Width-1),  -- x
+         math.random(0, Height-1), -- y
          math.random(), -- r
          math.random(), -- g
          math.random(), -- b
@@ -22,6 +22,8 @@ function love.load()
       {x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0}}
     }
 
+    StarsDx = 0
+    StarsDy = 0.1
     MaxTilt = 0.7
     TiltSpeed = 3
     MaxPower = 5
@@ -127,7 +129,7 @@ function love.update(dt)
     end
   end
 
-  -- blink stars
+  -- blink and move stars
   for i=1, #Stars do
     local star = Stars[i]
     star[6] = star[6] + star[7] * 0.01
@@ -139,6 +141,8 @@ function love.update(dt)
       star[6] = 1
       star[7] = -1
     end
+    star[1] = (star[1] + Width + StarsDx) % Width
+    star[2] = (star[2] + Height + StarsDy) % Height
   end
 
   fade_laser(Ships[1])
