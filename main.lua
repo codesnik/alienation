@@ -2,34 +2,62 @@ function love.load()
     love.window.setFullscreen(true)
     -- success = love.window.setFullscreen(true, "exclusive")
     Width, Height = love.graphics.getDimensions()
-    local max_stars = 1000  -- how many stars we want
+    love.mouse.setVisible(false)
 
-    Stars = {}   -- table which will hold our stars
-
-    for i=1, max_stars do   -- generate the coords of our stars
-       local x = math.random(5, Width-5)   -- generate a "random" number for the x coord of this star
-       local y = math.random(5, Height-5)   -- both coords are limited to the screen size, minus 5 pixels of padding
-       local r = math.random()
-       local g = math.random()
-       local b = math.random()
-       local a = math.random()
-       Stars[i] = {x, y, r, g, b, a, math.random(0, 2) * 2 - 1}   -- stick the values into the table
+    Stars = {}
+    for i=1, 1000 do
+       Stars[i] = {
+         math.random(5, Width-5),  -- x
+         math.random(5, Height-5), -- y
+         math.random(), -- r
+         math.random(), -- g
+         math.random(), -- b
+         math.random(), -- a
+         math.random(0, 2) * 2 - 1, -- 1/-1, direction of blinking
+       }
     end
 
     Ships = {
-        {x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0, angle=0}},
-        {x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0, angle=0}}
+      {x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0}},
+      {x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0, laser = {power = 0, phase=0}}
     }
 
     MaxTilt = 0.7
     TiltSpeed = 3
     MaxPower = 5
     PowerUp = 2
-    Acceleration = 2
-    Damping = 0.3
+    Acceleration = 5
+    Damping = 0.2
+
+    -- Laser1 = love.audio.newSource('sounds/laser.mp3', 'static')
+    -- Laser2 = love.audio.newSource('sounds/laser.mp3', 'static')
 end
 
 function love.update(dt)
+
+  local function get_angle(x, y)
+    if x == 0 and y == 0 then
+      return nil
+    elseif x < 0 and y == 0 then
+      return math.pi
+    else
+      return 2 * math.atan(y / (x + math.sqrt(x*x + y*y)))
+    end
+  end
+
+  local function play_laser()
+    --[[
+    if Laser1:isPlaying() then
+      Laser2:stop()
+      Laser2:setPitch(1 + math.random()*0.5)
+      Laser2:play()
+    else
+      Laser1:stop()
+      Laser1:setPitch(1 + math.random()*0.5)
+      Laser1:play()
+    end
+    --]]
+  end
 
   local function ship_up(ship)
     ship.dy = ship.dy - dt * Acceleration
@@ -76,19 +104,19 @@ function love.update(dt)
       ship.y = Height - (ship.y - Height) * Damping
       ship.dy = -ship.dy * Damping
     end
+    ship.angle = get_angle(ship.dx, ship.dy)
   end
 
   local function ship_unfire(ship)
     ship.laser.phase = 0
-    ship.laser.angle = 0
   end
 
   local function ship_fire(ship)
-    if (ship.laser.phase == 0 and (ship.dx ~= 0 or ship.dy ~= 0)) then
+    if ship.laser.phase == 0 then
       ship.laser.phase = 1
-      ship.laser.angle = 2 * math.atan(ship.dy / (ship.dx + math.sqrt(ship.dx*ship.dx + ship.dy*ship.dy)))
-    else
-      ship_unfire(ship)
+      play_laser()
+    -- else
+      -- ship_unfire(ship)
     end
   end
 
@@ -156,11 +184,12 @@ function love.draw()
     love.graphics.push()
     love.graphics.translate(ship.x, ship.y)
     love.graphics.rotate(ship.tilt)
+    love.graphics.setColor(1, 1, 1, 0.5)
     love.graphics.ellipse('fill', 0, -4, 5, 4)
     if color == 'red' then
-      love.graphics.setColor(1, 0, 0)
+      love.graphics.setColor(1, 0, 0, 1)
     elseif color == 'blue' then
-      love.graphics.setColor(0, 0, 1)
+      love.graphics.setColor(0, 0, 1, 1)
     end
     love.graphics.ellipse('fill', 0, 0, 10, 5)
     love.graphics.reset()
@@ -168,17 +197,28 @@ function love.draw()
   end
 
   local function draw_laser(ship, color)
-    if ship.laser.phase == 0 then
+    if ship.laser.phase == 0 or not(ship.angle) then
       return
     end
+
+    local line = {
+      ship.x + math.cos(ship.angle)*10,
+      ship.y + math.sin(ship.angle)*10,
+      ship.x + math.cos(ship.angle)*(Width+Height),
+      ship.y + math.sin(ship.angle)*(Width+Height)
+    }
+
+    if color == 'red' then
+      love.graphics.setColor(1, 0, 0)
+    elseif color == 'blue' then
+      love.graphics.setColor(0, 0, 1)
+    end
     love.graphics.push()
+    love.graphics.setLineWidth(3)
+    love.graphics.line(unpack(line))
     love.graphics.setColor(1,1,1)
-    love.graphics.line(
-      ship.x + math.cos(ship.laser.angle)*10,
-      ship.y + math.sin(ship.laser.angle)*10,
-      ship.x + math.cos(ship.laser.angle)*Width,
-      ship.y + math.sin(ship.laser.angle)*Width
-    )
+    love.graphics.setLineWidth(1)
+    love.graphics.line(unpack(line))
     love.graphics.pop()
   end
 
