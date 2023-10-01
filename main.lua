@@ -28,6 +28,7 @@ function love.load()
     PowerUp = 2
     Acceleration = 5
     Damping = 0.2
+    LaserDamping = 0.1
 
     local laser = love.audio.newSource('sounds/laser.mp3', 'static')
     local bg = love.audio.newSource('sounds/bg.wav', 'static')
@@ -58,6 +59,13 @@ function love.update(dt)
     laser:setPitch(1 + math.random()*0.5)
     laser:play()
     table.insert(Lasers, laser)
+  end
+
+  local function fade_laser(ship)
+    ship.laser.phase = ship.laser.phase - dt * LaserDamping
+    if ship.laser.phase < 0 then
+      ship.laser.phase = 0
+    end
   end
 
   local function ship_up(ship)
@@ -116,8 +124,6 @@ function love.update(dt)
     if ship.laser.phase == 0 then
       ship.laser.phase = 1
       play_laser()
-    -- else
-      -- ship_unfire(ship)
     end
   end
 
@@ -134,6 +140,9 @@ function love.update(dt)
       star[7] = -1
     end
   end
+
+  fade_laser(Ships[1])
+  fade_laser(Ships[2])
 
   if love.keyboard.isDown('up') then
     ship_up(Ships[1])
@@ -199,7 +208,7 @@ function love.draw()
 
   local function draw_laser(ship, color)
     -- not firing or staying still
-    if ship.laser.phase == 0 or not(ship.angle) then
+    if ship.laser.phase < 0.5 or not(ship.angle) then
       return
     end
 
