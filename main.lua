@@ -11,7 +11,8 @@ MinSuperCharge = 3
 ChargeSpeed = 5
 MaxLife = 100
 ShipRadius = 8
-DamageMultiplier = 10
+LaserDamage = 10
+CollisionDamage = 1
 GloatTime = 5
 
 local game = {
@@ -110,7 +111,7 @@ function love.update(dt)
   local function update_laser_damage(s1, s2)
     if s2.laser.power == 0 or not s2.angle then return end
     if get_distance_from_laser(s1, s2) < ShipRadius + 5 * s2.laser.power/MaxCharge then
-      ship_damage(s1, s2.laser.power * dt * DamageMultiplier)
+      ship_damage(s1, s2.laser.power * dt * LaserDamage)
     end
   end
 
@@ -155,22 +156,22 @@ function love.update(dt)
     ship.y = ship.y + ship.dy
     if ship.x < 0 then
       ship.x = -ship.x
-      ship_damage(ship, math.abs(ship.dx))
+      ship_damage(ship, math.abs(ship.dx) * CollisionDamage)
       ship.dx = -ship.dx
     end
     if ship.y < 0 then
       ship.y = -ship.y
-      ship_damage(ship, math.abs(ship.dy))
+      ship_damage(ship, math.abs(ship.dy) * CollisionDamage)
       ship.dy = -ship.dy
     end
     if ship.x > Width then
       ship.x = Width - (ship.x - Width) * Damping
-      ship_damage(ship, math.abs(ship.dx))
+      ship_damage(ship, math.abs(ship.dx) * CollisionDamage)
       ship.dx = -ship.dx * Damping
     end
     if ship.y > Height then
       ship.y = Height - (ship.y - Height) * Damping
-      ship_damage(ship, math.abs(ship.dy))
+      ship_damage(ship, math.abs(ship.dy) * CollisionDamage)
       ship.dy = -ship.dy * Damping
     end
     ship.angle = get_angle(ship.dx, ship.dy)
@@ -204,6 +205,18 @@ function love.update(dt)
       play_laser(ship.laser.power)
     end
     ship.laser.charge = math.min(MaxCharge, ship.laser.charge + dt * ChargeSpeed)
+  end
+
+  local function check_collision(s1, s2)
+    local dist = math.sqrt((s1.x - s2.x)^2 + (s1.y - s2.y)^2)
+    -- already close and getting even closer?
+    if dist < ShipRadius*2 and dist > math.sqrt((s1.x + s1.dx - s2.x - s2.dx)^2 + (s1.y + s1.dy - s2.y - s2.dy)^2) then
+      local boop_speed = math.sqrt((s1.dx - s2.dx)^2 + (s1.dy - s2.dy)^2)
+      ship_damage(s1, boop_speed * CollisionDamage)
+      ship_damage(s2, boop_speed * CollisionDamage)
+      s1.dx, s2.dx = s2.dx * (Damping^0.5), s1.dx * (Damping^0.5)
+      s1.dy, s2.dy = s2.dy * (Damping^0.5), s1.dy * (Damping^0.5)
+    end
   end
 
   local function update_stars()
@@ -294,6 +307,7 @@ function love.update(dt)
     ship_move(Ships[2])
     update_laser_damage(Ships[1], Ships[2])
     update_laser_damage(Ships[2], Ships[1])
+    check_collision(Ships[1], Ships[2])
 
     if Ships[1].life == 0 or Ships[2].life == 0 then
       game.gloat = game.gloat + dt
