@@ -17,20 +17,22 @@ GloatTime = 5
 
 local game = {
   mode = 'menu',
-  gloat = 0
+  gloat = 0,
+  stars = {},
+  debris = {}
 }
 
 function game.restart()
   game.mode = 'game'
   game.gloat = 0
-  Ships = {
+  game.ships = {
     {
-      x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0,
+      x = Width/2 - 100, y = Height/2, dx = 0, dy = 0, tilt = 0, radius = ShipRadius,
       life = MaxLife, laser = { power = 0, charge=0 },
       r = 1, g = 0, b = 0
     },
     {
-      x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0,
+      x = Width/2 + 100, y = Height/2, dx = 0, dy = 0, tilt = 0, radius = ShipRadius,
       life = MaxLife, laser = { power = 0, charge=0 },
       r = 0, g = 0, b = 1
     }
@@ -39,7 +41,7 @@ end
 
 function game.menu()
   game.mode = 'menu'
-  Debris = {}
+  game.debris = {}
 end
 
 function love.load()
@@ -47,9 +49,9 @@ function love.load()
     love.window.setFullscreen(true)
     Width, Height = love.graphics.getDimensions()
 
-    Stars = {}
+    game.stars = {}
     for i=1, 200 do
-       Stars[i] = {
+       game.stars[i] = {
          math.random(0, Width-1),  -- x
          math.random(0, Height-1), -- y
          math.random(), -- r
@@ -79,7 +81,7 @@ function love.update(dt)
     ship.life = math.max(0, ship.life - damage)
     ship.tilt = ship.tilt + (math.random() - 0.5)*damage * 0.5
     for _=1, math.max(damage*5, 2) do
-      table.insert(Debris, {
+      table.insert(game.debris, {
         ship.x, ship.y, math.random(), math.random(), math.random(), 1, {
           dx = ship.dx + (math.random() - 0.5)*(5 + damage*5),
           dy = ship.dy + (math.random() - 0.5)*(5 + damage*5),
@@ -111,7 +113,7 @@ function love.update(dt)
   -- inflict damage on s1 from laser of s2
   local function update_laser_damage(s1, s2)
     if s2.laser.power == 0 or not s2.angle then return end
-    if get_distance_from_laser(s1, s2) < ShipRadius + 5 * s2.laser.power/MaxCharge then
+    if get_distance_from_laser(s1, s2) < s1.radius + 5 * s2.laser.power/MaxCharge then
       ship_damage(s1, s2.laser.power * dt * LaserDamage)
     end
   end
@@ -221,7 +223,7 @@ function love.update(dt)
   local function check_collision(s1, s2)
     local dist = math.sqrt((s1.x - s2.x)^2 + (s1.y - s2.y)^2)
     -- already close and getting even closer?
-    if dist < ShipRadius*2 and dist > math.sqrt((s1.x + s1.dx - s2.x - s2.dx)^2 + (s1.y + s1.dy - s2.y - s2.dy)^2) then
+    if dist < s1.radius + s2.radius and dist > math.sqrt((s1.x + s1.dx - s2.x - s2.dx)^2 + (s1.y + s1.dy - s2.y - s2.dy)^2) then
       local boop_speed = math.sqrt((s1.dx - s2.dx)^2 + (s1.dy - s2.dy)^2)
       ship_damage(s1, boop_speed * CollisionDamage)
       ship_damage(s2, boop_speed * CollisionDamage)
@@ -232,7 +234,7 @@ function love.update(dt)
   end
 
   local function update_stars()
-    for _, star in ipairs(Stars) do
+    for _, star in ipairs(game.stars) do
       -- blink stars
       star[6] = star[6] + star[7] * 0.01
       if star[6] < 0 then
@@ -250,12 +252,12 @@ function love.update(dt)
   end
 
   local function update_debris()
-    for i, dot in ipairs(Debris) do
+    for i, dot in ipairs(game.debris) do
       dot[1] = dot[1] + dot[7].dx
       dot[2] = dot[2] + dot[7].dy
       dot[6] = dot[6] - 2 * dt -- fade out
       if dot[6] <= 0 then
-        table.remove(Debris, i)
+        table.remove(game.debris, i)
       end
     end
   end
@@ -264,64 +266,64 @@ function love.update(dt)
     update_stars()
     update_debris()
 
-    fade_laser(Ships[1])
-    fade_laser(Ships[2])
+    fade_laser(game.ships[1])
+    fade_laser(game.ships[2])
 
-    if Ships[1].life == 0 then
-      ship_tumble(Ships[1])
+    if game.ships[1].life == 0 then
+      ship_tumble(game.ships[1])
     else
       if love.keyboard.isDown('up') then
-        ship_up(Ships[1])
+        ship_up(game.ships[1])
       elseif love.keyboard.isDown('down') then
-        ship_down(Ships[1])
+        ship_down(game.ships[1])
       end
 
       if love.keyboard.isDown('left') then
-        ship_left(Ships[1])
+        ship_left(game.ships[1])
       elseif love.keyboard.isDown('right') then
-        ship_right(Ships[1])
+        ship_right(game.ships[1])
       else
-        ship_idle(Ships[1])
+        ship_idle(game.ships[1])
       end
 
       if love.keyboard.isDown('space') or love.keyboard.isDown(',') then
-        ship_charge(Ships[1])
+        ship_charge(game.ships[1])
       else
-        ship_release(Ships[1])
+        ship_release(game.ships[1])
       end
     end
 
-    if Ships[2].life == 0 then
-      ship_tumble(Ships[2])
+    if game.ships[2].life == 0 then
+      ship_tumble(game.ships[2])
     else
       if love.keyboard.isDown('1') or love.keyboard.isDown('`') then
-        ship_charge(Ships[2])
+        ship_charge(game.ships[2])
       else
-        ship_release(Ships[2])
+        ship_release(game.ships[2])
       end
 
       if love.keyboard.isDown('w') then
-        ship_up(Ships[2])
+        ship_up(game.ships[2])
       elseif love.keyboard.isDown('s') then
-        ship_down(Ships[2])
+        ship_down(game.ships[2])
       end
 
       if love.keyboard.isDown('a') then
-        ship_left(Ships[2])
+        ship_left(game.ships[2])
       elseif love.keyboard.isDown('d') then
-        ship_right(Ships[2])
+        ship_right(game.ships[2])
       else
-        ship_idle(Ships[2])
+        ship_idle(game.ships[2])
       end
     end
 
-    ship_move(Ships[1])
-    ship_move(Ships[2])
-    update_laser_damage(Ships[1], Ships[2])
-    update_laser_damage(Ships[2], Ships[1])
-    check_collision(Ships[1], Ships[2])
+    ship_move(game.ships[1])
+    ship_move(game.ships[2])
+    update_laser_damage(game.ships[1], game.ships[2])
+    update_laser_damage(game.ships[2], game.ships[1])
+    check_collision(game.ships[1], game.ships[2])
 
-    if Ships[1].life == 0 or Ships[2].life == 0 then
+    if game.ships[1].life == 0 or game.ships[2].life == 0 then
       game.gloat = game.gloat + dt
       if game.gloat > GloatTime then
         game.menu()
@@ -390,24 +392,24 @@ function love.draw()
   end
 
   local function draw_stars()
-    love.graphics.points(Stars)
+    love.graphics.points(game.stars)
   end
 
   local function draw_debris()
     love.graphics.setPointSize(2)
-    love.graphics.points(Debris)
+    love.graphics.points(game.debris)
     love.graphics.setPointSize(1)
   end
 
   if game.mode == 'game' then
     draw_stars()
     draw_debris()
-    draw_stats(Ships[1], 30, 1)
-    draw_stats(Ships[2], Width-30, -1)
-    draw_ship(Ships[1])
-    draw_ship(Ships[2])
-    draw_laser(Ships[1])
-    draw_laser(Ships[2])
+    draw_stats(game.ships[1], 30, 1)
+    draw_stats(game.ships[2], Width-30, -1)
+    draw_ship(game.ships[1])
+    draw_ship(game.ships[2])
+    draw_laser(game.ships[1])
+    draw_laser(game.ships[2])
 
   elseif game.mode == 'menu' then
     draw_stars()
