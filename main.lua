@@ -9,7 +9,7 @@ LaserDamping = 25
 MaxCharge = 10
 MinSuperCharge = 3
 ChargeSpeed = 5
-MaxLife = 50
+MaxLife = 100
 ShipRadius = 8
 DamageMultiplier = 10
 
@@ -31,6 +31,8 @@ function love.load()
          math.random(0, 2) * 2 - 1, -- 1/-1, direction of blinking
        }
     end
+
+    Debris = {}
 
     Ships = {
       {
@@ -57,8 +59,17 @@ end
 
 function love.update(dt)
 
-  local function damage(ship, damage)
+  local function damage_ship(ship, damage)
     ship.life = math.max(0, ship.life - damage)
+    ship.tilt = ship.tilt + (math.random() - 0.5)*damage * 0.5
+    for _=1, math.max(damage*5, 5) do
+      table.insert(Debris, {
+        ship.x, ship.y, math.random(), math.random(), math.random(), 1, {
+          dx = ship.dx + (math.random() - 0.5)*(10 + damage*5),
+          dy = ship.dy + (math.random() - 0.5)*(10 + damage*5),
+        }
+      })
+    end
   end
 
   local function get_angle(x, y)
@@ -85,7 +96,7 @@ function love.update(dt)
   local function update_laser_damage(s1, s2)
     if s2.laser.power == 0 or not s2.angle then return end
     if get_distance_from_laser(s1, s2) < ShipRadius + 5 * s2.laser.power/MaxCharge then
-      damage(s1, s2.laser.power * dt * DamageMultiplier)
+      damage_ship(s1, s2.laser.power * dt * DamageMultiplier)
     end
   end
 
@@ -130,22 +141,22 @@ function love.update(dt)
     ship.y = ship.y + ship.dy
     if ship.x < 0 then
       ship.x = -ship.x
-      damage(ship, math.abs(ship.dx))
+      damage_ship(ship, math.abs(ship.dx))
       ship.dx = -ship.dx
     end
     if ship.y < 0 then
       ship.y = -ship.y
-      damage(ship, math.abs(ship.dy))
+      damage_ship(ship, math.abs(ship.dy))
       ship.dy = -ship.dy
     end
     if ship.x > Width then
       ship.x = Width - (ship.x - Width) * Damping
-      damage(ship, math.abs(ship.dx))
+      damage_ship(ship, math.abs(ship.dx))
       ship.dx = -ship.dx * Damping
     end
     if ship.y > Height then
       ship.y = Height - (ship.y - Height) * Damping
-      damage(ship, math.abs(ship.dy))
+      damage_ship(ship, math.abs(ship.dy))
       ship.dy = -ship.dy * Damping
     end
     ship.angle = get_angle(ship.dx, ship.dy)
@@ -176,22 +187,38 @@ function love.update(dt)
     ship.laser.charge = math.min(MaxCharge, ship.laser.charge + dt * ChargeSpeed)
   end
 
-  for i=1, #Stars do
-    local star = Stars[i]
-    -- blink stars
-    star[6] = star[6] + star[7] * 0.01
-    if star[6] < 0 then
-      star[6] = 0
-      star[7] = 1
+  local function update_stars()
+    for i=1, #Stars do
+      local star = Stars[i]
+      -- blink stars
+      star[6] = star[6] + star[7] * 0.01
+      if star[6] < 0 then
+        star[6] = 0
+        star[7] = 1
+      end
+      if star[6] > 1 then
+        star[6] = 1
+        star[7] = -1
+      end
+      -- move starfield
+      star[1] = (star[1] + Width + StarsDx) % Width
+      star[2] = (star[2] + Height + StarsDy) % Height
     end
-    if star[6] > 1 then
-      star[6] = 1
-      star[7] = -1
-    end
-    -- move starfield
-    star[1] = (star[1] + Width + StarsDx) % Width
-    star[2] = (star[2] + Height + StarsDy) % Height
   end
+
+  local function update_debris()
+    for i, dot in ipairs(Debris) do
+      dot[1] = dot[1] + dot[7].dx
+      dot[2] = dot[2] + dot[7].dy
+      dot[6] = dot[6] - 2 * dt -- fade out
+      if dot[6] <= 0 then
+        table.remove(Debris, i)
+      end
+    end
+  end
+
+  update_stars()
+  update_debris()
 
   fade_laser(Ships[1])
   fade_laser(Ships[2])
@@ -297,6 +324,9 @@ function love.draw()
 
   love.graphics.origin()
   love.graphics.points(Stars)
+  love.graphics.setPointSize(2)
+  love.graphics.points(Debris)
+  love.graphics.setPointSize(1)
 
   draw_stats(Ships[1], 30, 1)
   draw_stats(Ships[2], Width-30, -1)
