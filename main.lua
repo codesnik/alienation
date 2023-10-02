@@ -1,23 +1,23 @@
+StarsDx = 0
+StarsDy = 0.1
+MaxTilt = 0.7
+TiltSpeed = 3
+PowerUp = 2
+Acceleration = 5
+Damping = 0.2
+LaserDamping = 25
+MaxCharge = 10
+MinSuperCharge = 3
+ChargeSpeed = 5
+MaxLife = 50
+ShipRadius = 8
+DamageMultiplier = 10
+
 function love.load()
     love.mouse.setVisible(false)
     love.window.setFullscreen(true)
     -- success = love.window.setFullscreen(true, "exclusive")
     Width, Height = love.graphics.getDimensions()
-
-    StarsDx = 0
-    StarsDy = 0.1
-    MaxTilt = 0.7
-    TiltSpeed = 3
-    PowerUp = 2
-    Acceleration = 5
-    Damping = 0.2
-    LaserDamping = 18
-    MaxCharge = 10
-    MinSuperCharge = 3
-    ChargeSpeed = 5
-    MaxLife = 50
-    ShipRadius = 8
-    DamageMultiplier = 10
 
     Stars = {}
     for i=1, 200 do
@@ -83,9 +83,7 @@ function love.update(dt)
 
   -- inflict damage on s1 from laser of s2
   local function update_laser_damage(s1, s2)
-    if s2.laser.power == 0 then
-      return
-    end
+    if s2.laser.power == 0 or not s2.angle then return end
     if get_distance_from_laser(s1, s2) < ShipRadius + 5 * s2.laser.power/MaxCharge then
       damage(s1, s2.laser.power * dt * DamageMultiplier)
     end
@@ -248,7 +246,11 @@ function love.draw()
 
   local function draw_ship(ship)
     love.graphics.push()
-    love.graphics.translate(ship.x, ship.y)
+    local max_shake = ship.laser.charge < MinSuperCharge and 0 or 4 * ship.laser.charge / MaxCharge
+    love.graphics.translate(
+      ship.x + (math.random()-0.5) * max_shake,
+      ship.y + (math.random()-0.5) * max_shake
+    )
     love.graphics.rotate(ship.tilt)
     love.graphics.setColor(1, 1, 1, 0.5)
     love.graphics.ellipse('fill', 0, -4, 5, 4)
