@@ -62,6 +62,7 @@ function love.load()
 
     local laser = love.audio.newSource('sounds/laser.mp3', 'static')
     local bg = love.audio.newSource('sounds/bg.wav', 'static')
+    Crash = love.audio.newSource('sounds/crash.mp3', 'static')
     bg:setLooping(true)
     bg:play()
     Lasers = {}
@@ -125,6 +126,12 @@ function love.update(dt)
     table.insert(Lasers, laser)
   end
 
+  local function play_crash()
+    Crash:stop()
+    Crash:setPitch(1 + math.random()*0.2)
+    Crash:play()
+  end
+
   local function ship_up(ship)
     ship.dy = ship.dy - dt * Acceleration
   end
@@ -157,21 +164,25 @@ function love.update(dt)
     if ship.x < 0 then
       ship.x = -ship.x
       ship_damage(ship, math.abs(ship.dx) * CollisionDamage)
+      play_crash()
       ship.dx = -ship.dx
     end
     if ship.y < 0 then
       ship.y = -ship.y
       ship_damage(ship, math.abs(ship.dy) * CollisionDamage)
+      play_crash()
       ship.dy = -ship.dy
     end
     if ship.x > Width then
       ship.x = Width - (ship.x - Width) * Damping
       ship_damage(ship, math.abs(ship.dx) * CollisionDamage)
+      play_crash()
       ship.dx = -ship.dx * Damping
     end
     if ship.y > Height then
       ship.y = Height - (ship.y - Height) * Damping
       ship_damage(ship, math.abs(ship.dy) * CollisionDamage)
+      play_crash()
       ship.dy = -ship.dy * Damping
     end
     ship.angle = get_angle(ship.dx, ship.dy)
@@ -216,6 +227,7 @@ function love.update(dt)
       ship_damage(s2, boop_speed * CollisionDamage)
       s1.dx, s2.dx = s2.dx * (Damping^0.5), s1.dx * (Damping^0.5)
       s1.dy, s2.dy = s2.dy * (Damping^0.5), s1.dy * (Damping^0.5)
+      play_crash()
     end
   end
 
