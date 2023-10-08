@@ -15,6 +15,9 @@ LaserDamage = 10
 CollisionDamage = 1
 GloatTime = 5
 
+Keys1 = { up = {'up'}, down = {'down'}, left = {'left'}, right = {'right'}, fire = {'space', ','}}
+Keys2 = { up = {'w'}, down = {'s'}, left = {'a'}, right = {'d'}, fire = {'tab', '`'}}
+
 local game = {
   mode = 'menu',
   gloat = 0,
@@ -262,6 +265,39 @@ function love.update(dt)
     end
   end
 
+  local function is_down_any(keys)
+    for _, key in ipairs(keys) do
+      if love.keyboard.isDown(key) then return true end
+    end
+    return false
+  end
+
+  local function ship_control(ship, mapping)
+    if ship.life == 0 then
+      ship_tumble(ship)
+    else
+      if is_down_any(mapping.up) then
+        ship_up(ship)
+      elseif is_down_any(mapping.down) then
+        ship_down(ship)
+      end
+
+      if is_down_any(mapping.left) then
+        ship_left(ship)
+      elseif is_down_any(mapping.right) then
+        ship_right(ship)
+      else
+        ship_idle(ship)
+      end
+
+      if is_down_any(mapping.fire) then
+        ship_charge(ship)
+      else
+        ship_release(ship)
+      end
+    end
+  end
+
   if game.mode == 'game' then
     update_stars()
     update_debris()
@@ -269,53 +305,8 @@ function love.update(dt)
     fade_laser(game.ships[1])
     fade_laser(game.ships[2])
 
-    if game.ships[1].life == 0 then
-      ship_tumble(game.ships[1])
-    else
-      if love.keyboard.isDown('up') then
-        ship_up(game.ships[1])
-      elseif love.keyboard.isDown('down') then
-        ship_down(game.ships[1])
-      end
-
-      if love.keyboard.isDown('left') then
-        ship_left(game.ships[1])
-      elseif love.keyboard.isDown('right') then
-        ship_right(game.ships[1])
-      else
-        ship_idle(game.ships[1])
-      end
-
-      if love.keyboard.isDown('space') or love.keyboard.isDown(',') then
-        ship_charge(game.ships[1])
-      else
-        ship_release(game.ships[1])
-      end
-    end
-
-    if game.ships[2].life == 0 then
-      ship_tumble(game.ships[2])
-    else
-      if love.keyboard.isDown('1') or love.keyboard.isDown('`') then
-        ship_charge(game.ships[2])
-      else
-        ship_release(game.ships[2])
-      end
-
-      if love.keyboard.isDown('w') then
-        ship_up(game.ships[2])
-      elseif love.keyboard.isDown('s') then
-        ship_down(game.ships[2])
-      end
-
-      if love.keyboard.isDown('a') then
-        ship_left(game.ships[2])
-      elseif love.keyboard.isDown('d') then
-        ship_right(game.ships[2])
-      else
-        ship_idle(game.ships[2])
-      end
-    end
+    ship_control(game.ships[1], Keys1)
+    ship_control(game.ships[2], Keys2)
 
     ship_move(game.ships[1])
     ship_move(game.ships[2])
